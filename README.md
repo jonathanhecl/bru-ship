@@ -2,11 +2,11 @@
 
 A lightweight, powerful CLI tool written in Go to convert [Bruno](https://www.usebruno.com/) API collections (`.bru` files) into [Postman Collection v2.1](https://www.postman.com/collection/) format.
 
-This tool is designed to be **read-only** regarding your source files. It parses your Bruno collection and generates a new JSON file for Postman, ensuring your original data remains untouched.
-
 ## Features
 
 - **Recursive Conversion**: Automatically traverses your project directories to find all `.bru` files.
+- **Authentication Inheritance**: Fully supports Bruno's authentication hierarchy (Global -> Folder -> Request). Inherited authentication is correctly resolved for each endpoint in the Postman collection.
+- **Documentation & Examples**: Preserves your request documentation (Markdown) and saved response examples.
 - **Selective Export**: Filter which folders to include in the final collection.
 - **Variable Replacement**: Replace Bruno variables (e.g., `{{baseUrl}}`) with specific values or Postman variables during conversion.
 - **Sensitive Data Sanitization**: Remove specific headers or variables (like Admin Tokens) from the exported collection. Endpoints using removed variables in their URL or Body will be **automatically skipped**.
@@ -31,6 +31,19 @@ git clone https://github.com/jonathanhecl/bru-ship.git
 cd bru-ship
 go build -o bru-ship
 ```
+
+
+## Automated Releases
+
+This project uses **GitHub Actions** to automatically build and release binaries for multiple platforms (Windows, macOS, Linux) whenever a new tag is pushed.
+
+To trigger a release:
+1. Create a new tag: `git tag v1.0.1`
+2. Push the tag: `git push origin v1.0.1`
+
+The workflow will automatically:
+- Build the application for Windows (amd64), Linux (amd64), and macOS (amd64/arm64).
+- Create a GitHub Release with the artifacts.
 
 ## Usage
 
