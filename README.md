@@ -46,10 +46,11 @@ Run the tool from your terminal. If no arguments are provided, it will display t
 |------|-------------|---------|
 | `-input` | Root directory of your Bruno collection. | `.` (Current Dir) |
 | `-output` | Path for the generated Postman JSON file. If omitted, generates `[Folders]-[Timestamp].json`. | `collection.json` (or dynamic) |
-| `-folders` | Comma-separated list of specific folders to include (e.g., `Auth,Users`). | (All folders) |
+| `-folders` | Comma-separated list of specific folders to include (e.g., `Auth,Users`). | (All folders) |  
 | `-replace` | Replace a variable in URLs/Bodies. Format: `key=value`. Can be repeated. | - |
 | `-remove` | Remove a header or variable by key. Can be repeated. | - |
 | `-env` | Name of the environment file to load variables from (e.g., `Production`). Looks in `environments/<name>.bru`. | - |
+| `-keep-folders` | Keep the folder structure in the generated collection. | `false` |
 | `-verbose` | Enable verbose logging to see skipped endpoints and other details. | `false` |
 
 ### Examples
