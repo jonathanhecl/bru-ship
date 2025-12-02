@@ -11,6 +11,7 @@ type Config struct {
 	Folders     []string
 	Replace     map[string]string
 	Remove      []string
+	Ignore      []string
 	Input       string
 	Output      string
 	Verbose     bool
@@ -123,6 +124,22 @@ func processFolder(path string, config Config) (*Item, error) {
 				// Log error but maybe continue? For now return error
 				return nil, err
 			}
+
+			// Check ignore patterns
+			shouldIgnore := false
+			for _, pattern := range config.Ignore {
+				if strings.Contains(bru.Name, pattern) {
+					shouldIgnore = true
+					if config.Verbose {
+						fmt.Printf("[SKIP] Skipped: %s (matches ignore pattern '%s')\n", bru.Name, pattern)
+					}
+					break
+				}
+			}
+			if shouldIgnore {
+				continue
+			}
+
 			postmanItem := BruToPostman(bru, config)
 			if postmanItem != nil {
 				item.Item = append(item.Item, *postmanItem)

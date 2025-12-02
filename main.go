@@ -38,6 +38,9 @@ func main() {
 	var env string
 	flag.StringVar(&env, "env", "", "Environment name to load variables from (e.g., Production)")
 
+	var ignore string
+	flag.StringVar(&ignore, "ignore", "", "Comma-separated list of endpoint names to ignore")
+
 	var verbose bool
 	flag.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 
@@ -72,6 +75,11 @@ func main() {
 		}
 	}
 
+	ignoreList := []string{}
+	if ignore != "" {
+		ignoreList = strings.Split(ignore, ",")
+	}
+
 	replaceMap := make(map[string]string)
 
 	// Load environment variables if specified
@@ -100,6 +108,7 @@ func main() {
 		Folders:     folderList,
 		Replace:     replaceMap,
 		Remove:      removes,
+		Ignore:      ignoreList,
 		Input:       input,
 		Output:      output,
 		Verbose:     verbose,
