@@ -134,6 +134,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Remove existing output file if it exists to ensure a clean overwrite
+	if _, err := os.Stat(output); err == nil {
+		if err := os.Remove(output); err != nil {
+			fmt.Printf("Error removing existing output file: %v\n", err)
+			os.Exit(1)
+		}
+		if verbose {
+			fmt.Printf("Removed existing output file: %s\n", output)
+		}
+	}
+
 	file, err := os.Create(output)
 	if err != nil {
 		fmt.Printf("Error creating output file: %v\n", err)
