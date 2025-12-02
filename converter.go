@@ -180,10 +180,10 @@ func BruToPostman(bru *BruFile, config Config) *Item {
 		// Try to guess mode from type or headers?
 		// Bruno usually has `body:json`
 		// We can check if body looks like JSON
-		if strings.HasPrefix(strings.TrimSpace(body), "{") || strings.HasPrefix(strings.TrimSpace(body), "[") {
-			// It's likely JSON, Postman might want options
-			// For now, raw is fine.
-		}
+		// if strings.HasPrefix(strings.TrimSpace(body), "{") || strings.HasPrefix(strings.TrimSpace(body), "[") {
+		// 	// It's likely JSON, Postman might want options
+		// 	// For now, raw is fine.
+		// }
 	}
 
 	return &Item{

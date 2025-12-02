@@ -1,3 +1,3 @@
-module github.com/jonathanhecl/bruno-to-client
+module github.com/jonathanhecl/bru-ship
 
 go 1.24.1

@@ -19,7 +19,7 @@ This tool is designed to be **read-only** regarding your source files. It parses
 If you have Go installed, you can install the tool directly:
 
 ```bash
-go install github.com/jonathanhecl/bruno-to-client@latest
+go install github.com/jonathanhecl/bru-ship@latest
 ```
 
 ### From Source
@@ -27,8 +27,8 @@ go install github.com/jonathanhecl/bruno-to-client@latest
 Ensure you have [Go](https://go.dev/) installed (1.18+ recommended).
 
 ```bash
-git clone https://github.com/jonathanhecl/bruno-to-client.git
-cd bruno-to-client
+git clone https://github.com/jonathanhecl/bru-ship.git
+cd bru-ship
 go build -o bru-ship
 ```
 
@@ -63,7 +63,7 @@ Convert the current directory's Bruno collection to `collection.json`.
 **2. Selective Export with Replacements**
 Export only the `Core` and `Billing` folders, replace `{{baseUrl}}` with a staging URL, and remove the `AdminSecret` header.
 ```bash
-./bru-ship -folders "Core,Billing" -replace "baseUrl=https://staging.api.com" -remove "AdminSecret"
+./bru-ship -folders "Core,Billing" -replace "baseUrl=https://staging.api.com" -remove "AdminSecret" -env "Production"
 ```
 
 **3. Custom Input and Output**
