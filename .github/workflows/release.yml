@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Build Linux
+        run: GOOS=linux GOARCH=amd64 go build -o bru-ship-linux-amd64 .
+
+      - name: Build Windows
+        run: GOOS=windows GOARCH=amd64 go build -o bru-ship-windows-amd64.exe .
+
+      - name: Build macOS (Intel)
+        run: GOOS=darwin GOARCH=amd64 go build -o bru-ship-darwin-amd64 .
+
+      - name: Build macOS (Apple Silicon)
+        run: GOOS=darwin GOARCH=arm64 go build -o bru-ship-darwin-arm64 .
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            bru-ship-linux-amd64
+            bru-ship-windows-amd64.exe
+            bru-ship-darwin-amd64
+            bru-ship-darwin-arm64
+          generate_release_notes: true

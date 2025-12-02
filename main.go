@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+var (
+	version string = "1.0.0"
+)
+
 // arrayFlags allows setting multiple flags with the same name
 type arrayFlags []string
 
@@ -23,6 +27,7 @@ func (i *arrayFlags) Set(value string) error {
 }
 
 func main() {
+	fmt.Printf("bru-ship v%s\n", version)
 	var folders string
 	var replaces arrayFlags
 	var removes arrayFlags
