@@ -50,11 +50,29 @@ func WalkAndConvert(config Config) (*PostmanCollection, error) {
 	}
 
 	// Populate Collection Variables
+	existingVars := make(map[string]bool)
 	for k, v := range config.Replace {
 		collection.Variable = append(collection.Variable, Variable{
 			Key:   k,
 			Value: v,
 		})
+		existingVars[k] = true
+	}
+
+	// Try to read collection.bru for global variables
+	collectionBruPath := filepath.Join(config.Input, "collection.bru")
+	if _, err := os.Stat(collectionBruPath); err == nil {
+		if bru, err := ParseBruFile(collectionBruPath); err == nil {
+			for _, v := range bru.Vars {
+				if !existingVars[v.Key] {
+					collection.Variable = append(collection.Variable, Variable{
+						Key:   v.Key,
+						Value: v.Value,
+					})
+					existingVars[v.Key] = true
+				}
+			}
+		}
 	}
 
 	// Helper function to process items
