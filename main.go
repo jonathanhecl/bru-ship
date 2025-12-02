@@ -63,6 +63,13 @@ func main() {
 	folderList := []string{}
 	if folders != "" {
 		folderList = strings.Split(folders, ",")
+		for _, folder := range folderList {
+			folderPath := filepath.Join(input, folder)
+			if _, err := os.Stat(folderPath); os.IsNotExist(err) {
+				fmt.Printf("Error: Folder does not exist: %s\n", folderPath)
+				os.Exit(1)
+			}
+		}
 	}
 
 	replaceMap := make(map[string]string)
@@ -72,7 +79,8 @@ func main() {
 		envPath := filepath.Join(input, "environments", env+".bru")
 		envVars, err := ParseEnvFile(envPath)
 		if err != nil {
-			fmt.Printf("Warning: Could not load environment file %s: %v\n", envPath, err)
+			fmt.Printf("Error: Could not load environment file %s: %v\n", envPath, err)
+			os.Exit(1)
 		} else {
 			fmt.Printf("Loaded environment: %s\n", env)
 			for k, v := range envVars {
