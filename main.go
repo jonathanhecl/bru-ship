@@ -41,6 +41,18 @@ func main() {
 	var verbose bool
 	flag.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 
+	var keepFolders bool
+	flag.BoolVar(&keepFolders, "keep-folders", false, "Keep folder structure (default is to flatten)")
+
+	// Filter out standalone "\" arguments which might be passed by PowerShell when copy-pasting multi-line commands
+	var args []string
+	for _, arg := range os.Args {
+		if arg != "\\" {
+			args = append(args, arg)
+		}
+	}
+	os.Args = args
+
 	flag.Parse()
 
 	if len(os.Args) == 1 {
@@ -77,12 +89,13 @@ func main() {
 	}
 
 	config := Config{
-		Folders: folderList,
-		Replace: replaceMap,
-		Remove:  removes,
-		Input:   input,
-		Output:  output,
-		Verbose: verbose,
+		Folders:     folderList,
+		Replace:     replaceMap,
+		Remove:      removes,
+		Input:       input,
+		Output:      output,
+		Verbose:     verbose,
+		KeepFolders: keepFolders,
 	}
 
 	// Generate output filename if default or empty
@@ -118,5 +131,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("Conversion completed successfully!")
+	absOutput, _ := filepath.Abs(output)
+	fmt.Printf("Conversion completed successfully! Output file: %s\n", absOutput)
 }

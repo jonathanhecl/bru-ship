@@ -8,12 +8,13 @@ import (
 )
 
 type Config struct {
-	Folders []string
-	Replace map[string]string
-	Remove  []string
-	Input   string
-	Output  string
-	Verbose bool
+	Folders     []string
+	Replace     map[string]string
+	Remove      []string
+	Input       string
+	Output      string
+	Verbose     bool
+	KeepFolders bool
 }
 
 // WalkAndConvert walks the directory and converts .bru files to Postman collection
@@ -23,36 +24,60 @@ func WalkAndConvert(config Config) (*PostmanCollection, error) {
 			Name:   "Bruno Collection", // Could be parameterized
 			Schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		},
-		Item: []Item{},
+		Item:     []Item{},
+		Variable: []Variable{},
+	}
+
+	// Populate Collection Variables
+	for k, v := range config.Replace {
+		collection.Variable = append(collection.Variable, Variable{
+			Key:   k,
+			Value: v,
+		})
+	}
+
+	// Helper function to process items
+	processItems := func(folderPath string) ([]Item, error) {
+		item, err := processFolder(folderPath, config)
+		if err != nil {
+			return nil, err
+		}
+		if item != nil {
+			if config.KeepFolders {
+				return []Item{*item}, nil
+			} else {
+				// Flatten: return the items inside the folder
+				return item.Item, nil
+			}
+		}
+		return []Item{}, nil
 	}
 
 	// If folders are specified, only process those
 	if len(config.Folders) > 0 {
 		for _, folderName := range config.Folders {
 			folderPath := filepath.Join(config.Input, folderName)
-			item, err := processFolder(folderPath, config)
+			items, err := processItems(folderPath)
 			if err != nil {
-				return nil, err
+				fmt.Printf("Warning: Could not process folder '%s': %v\n", folderPath, err)
+				continue
 			}
-			if item != nil {
-				collection.Item = append(collection.Item, *item)
-			}
+			collection.Item = append(collection.Item, items...)
 		}
 	} else {
 		// Process all folders in root
 		entries, err := os.ReadDir(config.Input)
 		if err != nil {
-			return nil, err
+			fmt.Printf("Warning: Could not read input directory '%s': %v\n", config.Input, err)
+			return collection, nil
 		}
 		for _, entry := range entries {
 			if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
-				item, err := processFolder(filepath.Join(config.Input, entry.Name()), config)
+				items, err := processItems(filepath.Join(config.Input, entry.Name()))
 				if err != nil {
 					return nil, err
 				}
-				if item != nil {
-					collection.Item = append(collection.Item, *item)
-				}
+				collection.Item = append(collection.Item, items...)
 			}
 		}
 	}
@@ -61,6 +86,9 @@ func WalkAndConvert(config Config) (*PostmanCollection, error) {
 }
 
 func processFolder(path string, config Config) (*Item, error) {
+	if config.Verbose {
+		fmt.Printf("Scanning folder: %s\n", path)
+	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -98,6 +126,9 @@ func processFolder(path string, config Config) (*Item, error) {
 			postmanItem := BruToPostman(bru, config)
 			if postmanItem != nil {
 				item.Item = append(item.Item, *postmanItem)
+				if config.Verbose {
+					fmt.Printf("[OK] Exported: %s\n", bru.Name)
+				}
 			}
 		}
 	}
@@ -119,7 +150,7 @@ func BruToPostman(bru *BruFile, config Config) *Item {
 		placeholder := "{{" + r + "}}"
 		if strings.Contains(url, placeholder) || strings.Contains(body, placeholder) {
 			if config.Verbose {
-				fmt.Printf("Skipping endpoint '%s' because it uses removed variable '%s' in URL or Body\n", bru.Name, r)
+				fmt.Printf("[SKIP] Skipped: %s (uses removed variable '%s' in URL or Body)\n", bru.Name, r)
 			}
 			return nil
 		}
@@ -127,18 +158,16 @@ func BruToPostman(bru *BruFile, config Config) *Item {
 		for _, v := range bru.Auth {
 			if strings.Contains(v, placeholder) {
 				if config.Verbose {
-					fmt.Printf("Skipping endpoint '%s' because it uses removed variable '%s' in Auth\n", bru.Name, r)
+					fmt.Printf("[SKIP] Skipped: %s (uses removed variable '%s' in Auth)\n", bru.Name, r)
 				}
 				return nil
 			}
 		}
 	}
 
-	for k, v := range config.Replace {
-		placeholder := "{{" + k + "}}"
-		url = strings.ReplaceAll(url, placeholder, v)
-		body = strings.ReplaceAll(body, placeholder, v)
-	}
+	// We NO LONGER replace variables in the URL string.
+	// Instead, we rely on Postman Collection Variables.
+	// However, we might want to clean up the URL if it has issues, but generally {{var}} is fine.
 
 	// Build Headers
 	var headers []Header
@@ -166,9 +195,32 @@ func BruToPostman(bru *BruFile, config Config) *Item {
 		Header: headers,
 		Url: Url{
 			Raw: url,
-			// Parse host/path if needed, but Raw is often enough for Postman
-			// To be more correct, we might want to parse the URL
 		},
+	}
+
+	// Parse URL components
+	// Simple parsing to extract host and path
+	// If URL starts with http/https, we can try to parse it
+	// If it starts with {{, it's a variable
+
+	// Split by / to get path segments
+	parts := strings.Split(url, "/")
+	if len(parts) > 0 {
+		// This is a very basic parser, Postman is quite flexible with "raw"
+		// But populating Host and Path helps
+
+		// If the first part is http: or https:, then parts[2] is host
+		// If the first part is {{baseUrl}}, then that is host
+
+		// For now, let's just rely on Raw, but ensure variables are preserved.
+		// The user complained about invalid URL. Often this is because of spaces in replaced values.
+		// Since we are NOT replacing values anymore, the {{var}} will be preserved.
+
+		// We can try to populate Host/Path for better structure
+		req.Url.Host = []string{}
+		req.Url.Path = []string{}
+
+		// TODO: A better URL parser would be good, but 'Raw' is usually sufficient if variables are used correctly.
 	}
 
 	// Handle Body

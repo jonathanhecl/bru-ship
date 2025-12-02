@@ -21,8 +21,9 @@ type KeyValue struct {
 
 // PostmanCollection represents the root of the JSON
 type PostmanCollection struct {
-	Info Info   `json:"info"`
-	Item []Item `json:"item"`
+	Info     Info       `json:"info"`
+	Item     []Item     `json:"item"`
+	Variable []Variable `json:"variable,omitempty"`
 }
 
 type Info struct {
@@ -38,6 +39,7 @@ type Item struct {
 	Item        []Item        `json:"item,omitempty"`     // If it's a folder
 	Request     *Request      `json:"request,omitempty"`  // If it's an endpoint
 	Response    []interface{} `json:"response,omitempty"` // Examples
+	Variable    []Variable    `json:"variable,omitempty"` // Folder variables
 }
 
 type Request struct {
