@@ -17,7 +17,7 @@ func TestBruToPostman_SkipRemoved(t *testing.T) {
 		Verbose: true,
 	}
 
-	item := BruToPostman(bru, config)
+	item := BruToPostman(bru, config, nil)
 	if item != nil {
 		t.Error("Expected item to be nil (skipped) because it contains a removed variable")
 	}
@@ -35,7 +35,7 @@ func TestBruToPostman_NotSkipped(t *testing.T) {
 		Remove: []string{"secretToken"},
 	}
 
-	item := BruToPostman(bru, config)
+	item := BruToPostman(bru, config, nil)
 	if item == nil {
 		t.Error("Expected item to NOT be nil")
 	}
@@ -57,7 +57,7 @@ func TestBruToPostman_SkipRemovedAuth(t *testing.T) {
 		Verbose: true,
 	}
 
-	item := BruToPostman(bru, config)
+	item := BruToPostman(bru, config, nil)
 	if item != nil {
 		t.Error("Expected item to be nil (skipped) because it uses removed variable in Auth")
 	}

@@ -146,6 +146,15 @@ func processFolder(path string, config Config) (*Item, error) {
 		return nil, err
 	}
 
+	// Check for folder.bru to get inherited auth
+	var folderAuth map[string]string
+	folderBruPath := filepath.Join(path, "folder.bru")
+	if _, err := os.Stat(folderBruPath); err == nil {
+		if bru, err := ParseBruFile(folderBruPath); err == nil {
+			folderAuth = bru.Auth
+		}
+	}
+
 	for _, entry := range entries {
 		fullPath := filepath.Join(path, entry.Name())
 		if entry.IsDir() {
@@ -183,7 +192,7 @@ func processFolder(path string, config Config) (*Item, error) {
 				continue
 			}
 
-			postmanItem := BruToPostman(bru, config)
+			postmanItem := BruToPostman(bru, config, folderAuth)
 			if postmanItem != nil {
 				item.Item = append(item.Item, *postmanItem)
 				if config.Verbose {
@@ -200,7 +209,7 @@ func processFolder(path string, config Config) (*Item, error) {
 	return item, nil
 }
 
-func BruToPostman(bru *BruFile, config Config) *Item {
+func BruToPostman(bru *BruFile, config Config, parentAuth map[string]string) *Item {
 	// Apply replacements to URL and Body
 	url := bru.Url
 	body := bru.Body
@@ -256,6 +265,92 @@ func BruToPostman(bru *BruFile, config Config) *Item {
 		Url: Url{
 			Raw: url,
 		},
+		Description: bru.Docs,
+	}
+
+	// Handle Auth
+	// Logic: If bru.Auth is present and not "inherit", use it.
+	// If it is "inherit" or missing, use parentAuth.
+	var effectiveAuth map[string]string
+
+	// Check if explicit auth is set
+	if len(bru.Auth) > 0 {
+		// Check if it is explicitly set to inherit
+		if val, ok := bru.Auth["inherit"]; ok && val == "true" {
+			effectiveAuth = parentAuth
+		} else if _, ok := bru.Auth["awsv4"]; ok {
+			// TODO: Handle other auth types if needed, for now just use what's there
+			effectiveAuth = bru.Auth
+		} else if _, ok := bru.Auth["bearer"]; ok {
+			effectiveAuth = bru.Auth
+		} else if _, ok := bru.Auth["basic"]; ok {
+			effectiveAuth = bru.Auth
+		} else {
+			// Default fallback or custom logic
+			// If key "mode" exists (from our parser logic for 'auth { mode: ... }')
+			if mode, ok := bru.Auth["mode"]; ok {
+				if mode == "inherit" {
+					effectiveAuth = parentAuth
+				} else {
+					effectiveAuth = bru.Auth
+				}
+			} else {
+				// No mode, maybe just inherit?
+				// If empty, use parent?
+				// But len > 0.
+				// Let's assume if it's not inherit, it's specific.
+				effectiveAuth = bru.Auth
+			}
+		}
+	} else {
+		// No auth defined, inherit by default?
+		// Bruno defaults to inherit usually.
+		effectiveAuth = parentAuth
+	}
+
+	if len(effectiveAuth) > 0 {
+		// Construct Postman Auth
+		// We expect effectiveAuth to contain keys like "mode", "token", "username", "password"
+		// Our parser flattens "auth { mode: bearer }" and "auth:bearer { token: ... }" into one map.
+
+		mode := effectiveAuth["mode"]
+		if mode == "" {
+			// Try to infer mode
+			if _, ok := effectiveAuth["token"]; ok {
+				mode = "bearer"
+			} else if _, ok := effectiveAuth["username"]; ok {
+				mode = "basic"
+			}
+		}
+
+		if mode == "bearer" {
+			req.Auth = &PostmanAuth{
+				Type: "bearer",
+				Bearer: []AuthElement{
+					{
+						Key:   "token",
+						Value: effectiveAuth["token"],
+						Type:  "string",
+					},
+				},
+			}
+		} else if mode == "basic" {
+			req.Auth = &PostmanAuth{
+				Type: "basic",
+				Basic: []AuthElement{
+					{
+						Key:   "username",
+						Value: effectiveAuth["username"],
+						Type:  "string",
+					},
+					{
+						Key:   "password",
+						Value: effectiveAuth["password"],
+						Type:  "string",
+					},
+				},
+			}
+		}
 	}
 
 	// Parse URL components

@@ -75,10 +75,25 @@ type PostmanResponse struct {
 }
 
 type Request struct {
-	Method string   `json:"method"`
-	Header []Header `json:"header"`
-	Body   *Body    `json:"body,omitempty"`
-	Url    Url      `json:"url"`
+	Method      string       `json:"method"`
+	Header      []Header     `json:"header"`
+	Body        *Body        `json:"body,omitempty"`
+	Url         Url          `json:"url"`
+	Description string       `json:"description,omitempty"`
+	Auth        *PostmanAuth `json:"auth,omitempty"`
+}
+
+type PostmanAuth struct {
+	Type   string        `json:"type"`
+	Bearer []AuthElement `json:"bearer,omitempty"`
+	Basic  []AuthElement `json:"basic,omitempty"`
+	// Add other types as needed
+}
+
+type AuthElement struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+	Type  string `json:"type"`
 }
 
 type Header struct {
