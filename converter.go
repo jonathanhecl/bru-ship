@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -20,10 +22,28 @@ type Config struct {
 
 // WalkAndConvert walks the directory and converts .bru files to Postman collection
 func WalkAndConvert(config Config) (*PostmanCollection, error) {
+	collectionName := "Bruno Collection"
+
+	// Try to read bruno.json
+	brunoConfigPath := filepath.Join(config.Input, "bruno.json")
+	if fileContent, err := os.ReadFile(brunoConfigPath); err == nil {
+		var brunoConfig BrunoConfig
+		if err := json.Unmarshal(fileContent, &brunoConfig); err == nil && brunoConfig.Name != "" {
+			collectionName = brunoConfig.Name
+		}
+	} else {
+		// Fallback to directory name if bruno.json is missing
+		if absPath, err := filepath.Abs(config.Input); err == nil {
+			collectionName = filepath.Base(absPath)
+		}
+	}
+
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	collection := &PostmanCollection{
 		Info: Info{
-			Name:   "Bruno Collection", // Could be parameterized
-			Schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+			Name:        collectionName,
+			Description: fmt.Sprintf("Exported on %s", timestamp),
+			Schema:      "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		},
 		Item:     []Item{},
 		Variable: []Variable{},
@@ -119,6 +139,11 @@ func processFolder(path string, config Config) (*Item, error) {
 				item.Item = append(item.Item, *subItem)
 			}
 		} else if strings.HasSuffix(entry.Name(), ".bru") {
+			// Ignore folder.bru files as they only contain metadata
+			if entry.Name() == "folder.bru" {
+				continue
+			}
+
 			bru, err := ParseBruFile(fullPath)
 			if err != nil {
 				// Log error but maybe continue? For now return error
@@ -216,28 +241,33 @@ func BruToPostman(bru *BruFile, config Config) *Item {
 	}
 
 	// Parse URL components
-	// Simple parsing to extract host and path
-	// If URL starts with http/https, we can try to parse it
-	// If it starts with {{, it's a variable
+	// Example: https://{{serverURL}}/status
+	// Protocol: https
+	// Host: {{serverURL}}
+	// Path: status
 
-	// Split by / to get path segments
-	parts := strings.Split(url, "/")
-	if len(parts) > 0 {
-		// This is a very basic parser, Postman is quite flexible with "raw"
-		// But populating Host and Path helps
+	if strings.Contains(url, "://") {
+		parts := strings.SplitN(url, "://", 2)
+		req.Url.Protocol = parts[0]
+		remaining := parts[1]
 
-		// If the first part is http: or https:, then parts[2] is host
-		// If the first part is {{baseUrl}}, then that is host
-
-		// For now, let's just rely on Raw, but ensure variables are preserved.
-		// The user complained about invalid URL. Often this is because of spaces in replaced values.
-		// Since we are NOT replacing values anymore, the {{var}} will be preserved.
-
-		// We can try to populate Host/Path for better structure
-		req.Url.Host = []string{}
-		req.Url.Path = []string{}
-
-		// TODO: A better URL parser would be good, but 'Raw' is usually sufficient if variables are used correctly.
+		// Split host and path
+		pathParts := strings.Split(remaining, "/")
+		if len(pathParts) > 0 {
+			req.Url.Host = []string{pathParts[0]}
+			if len(pathParts) > 1 {
+				req.Url.Path = pathParts[1:]
+			}
+		}
+	} else {
+		// No protocol, maybe just {{baseUrl}}/path
+		pathParts := strings.Split(url, "/")
+		if len(pathParts) > 0 {
+			req.Url.Host = []string{pathParts[0]}
+			if len(pathParts) > 1 {
+				req.Url.Path = pathParts[1:]
+			}
+		}
 	}
 
 	// Handle Body
@@ -246,17 +276,71 @@ func BruToPostman(bru *BruFile, config Config) *Item {
 			Mode: "raw", // Default to raw
 			Raw:  body,
 		}
-		// Try to guess mode from type or headers?
-		// Bruno usually has `body:json`
-		// We can check if body looks like JSON
-		// if strings.HasPrefix(strings.TrimSpace(body), "{") || strings.HasPrefix(strings.TrimSpace(body), "[") {
-		// 	// It's likely JSON, Postman might want options
-		// 	// For now, raw is fine.
-		// }
+		// Add options for JSON if needed
+		if strings.HasPrefix(strings.TrimSpace(body), "{") || strings.HasPrefix(strings.TrimSpace(body), "[") {
+			req.Body.Options = map[string]interface{}{
+				"raw": map[string]string{
+					"language": "json",
+				},
+			}
+		}
 	}
 
-	return &Item{
+	item := &Item{
 		Name:    bru.Name,
 		Request: req,
 	}
+
+	// Handle Examples (Responses)
+	for _, ex := range bru.Examples {
+		// Convert BruExample to PostmanResponse
+		pmResponse := PostmanResponse{
+			Name: ex.Name,
+			OriginalRequest: &Request{
+				Method: ex.Request.Method,
+				Url: Url{
+					Raw: ex.Request.Url,
+				},
+				// We might need to parse URL for originalRequest too
+			},
+			Status:                 ex.Response.StatusText,
+			Code:                   ex.Response.Status,
+			PostmanPreviewLanguage: "json", // Default to json
+			Body:                   ex.Response.Body,
+		}
+
+		// Parse OriginalRequest URL
+		if strings.Contains(ex.Request.Url, "://") {
+			parts := strings.SplitN(ex.Request.Url, "://", 2)
+			pmResponse.OriginalRequest.Url.Protocol = parts[0]
+			remaining := parts[1]
+			pathParts := strings.Split(remaining, "/")
+			if len(pathParts) > 0 {
+				pmResponse.OriginalRequest.Url.Host = []string{pathParts[0]}
+				if len(pathParts) > 1 {
+					pmResponse.OriginalRequest.Url.Path = pathParts[1:]
+				}
+			}
+		} else {
+			pathParts := strings.Split(ex.Request.Url, "/")
+			if len(pathParts) > 0 {
+				pmResponse.OriginalRequest.Url.Host = []string{pathParts[0]}
+				if len(pathParts) > 1 {
+					pmResponse.OriginalRequest.Url.Path = pathParts[1:]
+				}
+			}
+		}
+
+		// Headers
+		for _, h := range ex.Response.Headers {
+			pmResponse.Header = append(pmResponse.Header, Header{
+				Key:   h.Key,
+				Value: h.Value,
+			})
+		}
+
+		item.Response = append(item.Response, pmResponse)
+	}
+
+	return item
 }
