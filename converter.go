@@ -59,10 +59,12 @@ func WalkAndConvert(config Config) (*PostmanCollection, error) {
 		existingVars[k] = true
 	}
 
-	// Try to read collection.bru for global variables
+	// Try to read collection.bru for global variables and auth
+	var globalAuth map[string]string
 	collectionBruPath := filepath.Join(config.Input, "collection.bru")
 	if _, err := os.Stat(collectionBruPath); err == nil {
 		if bru, err := ParseBruFile(collectionBruPath); err == nil {
+			globalAuth = bru.Auth
 			for _, v := range bru.Vars {
 				if !existingVars[v.Key] {
 					collection.Variable = append(collection.Variable, Variable{
@@ -76,8 +78,8 @@ func WalkAndConvert(config Config) (*PostmanCollection, error) {
 	}
 
 	// Helper function to process items
-	processItems := func(folderPath string) ([]Item, error) {
-		item, err := processFolder(folderPath, config)
+	processItems := func(folderPath string, parentAuth map[string]string) ([]Item, error) {
+		item, err := processFolder(folderPath, config, parentAuth)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +98,7 @@ func WalkAndConvert(config Config) (*PostmanCollection, error) {
 	if len(config.Folders) > 0 {
 		for _, folderName := range config.Folders {
 			folderPath := filepath.Join(config.Input, folderName)
-			items, err := processItems(folderPath)
+			items, err := processItems(folderPath, globalAuth)
 			if err != nil {
 				fmt.Printf("Warning: Could not process folder '%s': %v\n", folderPath, err)
 				continue
@@ -112,7 +114,7 @@ func WalkAndConvert(config Config) (*PostmanCollection, error) {
 		}
 		for _, entry := range entries {
 			if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
-				items, err := processItems(filepath.Join(config.Input, entry.Name()))
+				items, err := processItems(filepath.Join(config.Input, entry.Name()), globalAuth)
 				if err != nil {
 					return nil, err
 				}
@@ -124,7 +126,7 @@ func WalkAndConvert(config Config) (*PostmanCollection, error) {
 	return collection, nil
 }
 
-func processFolder(path string, config Config) (*Item, error) {
+func processFolder(path string, config Config, parentAuth map[string]string) (*Item, error) {
 	if config.Verbose {
 		fmt.Printf("Scanning folder: %s\n", path)
 	}
@@ -146,19 +148,31 @@ func processFolder(path string, config Config) (*Item, error) {
 		return nil, err
 	}
 
-	// Check for folder.bru to get inherited auth
-	var folderAuth map[string]string
+	// Determine current folder auth
+	currentAuth := parentAuth
 	folderBruPath := filepath.Join(path, "folder.bru")
 	if _, err := os.Stat(folderBruPath); err == nil {
 		if bru, err := ParseBruFile(folderBruPath); err == nil {
-			folderAuth = bru.Auth
+			// If folder has auth, check if it is inherit
+			if len(bru.Auth) > 0 {
+				isInherit := false
+				if val, ok := bru.Auth["inherit"]; ok && val == "true" {
+					isInherit = true
+				} else if mode, ok := bru.Auth["mode"]; ok && mode == "inherit" {
+					isInherit = true
+				}
+
+				if !isInherit {
+					currentAuth = bru.Auth
+				}
+			}
 		}
 	}
 
 	for _, entry := range entries {
 		fullPath := filepath.Join(path, entry.Name())
 		if entry.IsDir() {
-			subItem, err := processFolder(fullPath, config)
+			subItem, err := processFolder(fullPath, config, currentAuth)
 			if err != nil {
 				return nil, err
 			}
@@ -192,7 +206,7 @@ func processFolder(path string, config Config) (*Item, error) {
 				continue
 			}
 
-			postmanItem := BruToPostman(bru, config, folderAuth)
+			postmanItem := BruToPostman(bru, config, currentAuth)
 			if postmanItem != nil {
 				item.Item = append(item.Item, *postmanItem)
 				if config.Verbose {
