@@ -36,8 +36,6 @@ func ParseBruFile(path string) (*BruFile, error) {
 			indent = line[:strings.Index(line, trimmedLine)]
 		}
 
-		fmt.Printf("DEBUG: Line='%s' Block='%s' Indent='%d'\n", trimmedLine, currentBlock, len(indent))
-
 		if trimmedLine == "" && !strings.HasPrefix(currentBlock, "body") && currentBlock != "example" {
 			continue
 		}
@@ -285,7 +283,7 @@ func ParseBruFile(path string) (*BruFile, error) {
 						// Just skip the triple quotes lines for now or handle them?
 						// The content is usually inside triple quotes.
 						// Let's just append everything for now and clean up later if needed.
-						if !strings.Contains(line, "content:") {
+						if !strings.Contains(line, "content:") && strings.TrimSpace(line) != "'''" {
 							bru.Examples[idx].Response.Body += line + "\n"
 						}
 					} else {
@@ -297,7 +295,7 @@ func ParseBruFile(path string) (*BruFile, error) {
 			} else {
 				// Handle content: ''' ... '''
 				if strings.Contains(line, "'''") {
-					if !strings.Contains(line, "content:") {
+					if !strings.Contains(line, "content:") && strings.TrimSpace(line) != "'''" {
 						bru.Examples[idx].Response.Body += line + "\n"
 					}
 				} else {
