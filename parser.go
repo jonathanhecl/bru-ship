@@ -17,6 +17,7 @@ func ParseBruFile(path string) (*BruFile, error) {
 	bru := &BruFile{
 		Headers: []KeyValue{},
 		Vars:    []KeyValue{},
+		Auth:    make(map[string]string),
 	}
 	scanner := bufio.NewScanner(file)
 
@@ -34,7 +35,7 @@ func ParseBruFile(path string) (*BruFile, error) {
 		// Detect block start
 		if strings.HasSuffix(trimmedLine, " {") {
 			blockName := strings.TrimSuffix(trimmedLine, " {")
-			if blockName == "meta" || blockName == "headers" || blockName == "vars:pre-request" || blockName == "vars:post-response" || strings.HasPrefix(blockName, "body") || blockName == "docs" {
+			if blockName == "meta" || blockName == "headers" || blockName == "vars:pre-request" || blockName == "vars:post-response" || strings.HasPrefix(blockName, "body") || blockName == "docs" || strings.HasPrefix(blockName, "auth") {
 				currentBlock = blockName
 				continue
 			}
@@ -105,7 +106,14 @@ func ParseBruFile(path string) (*BruFile, error) {
 			// Docs are usually markdown, just append
 			// TODO: Handle docs better if needed
 		default:
-			if strings.HasPrefix(currentBlock, "body") {
+			if strings.HasPrefix(currentBlock, "auth") {
+				parts := strings.SplitN(trimmedLine, ":", 2)
+				if len(parts) == 2 {
+					key := strings.TrimSpace(parts[0])
+					val := strings.TrimSpace(parts[1])
+					bru.Auth[key] = val
+				}
+			} else if strings.HasPrefix(currentBlock, "body") {
 				bodyBuffer.WriteString(line + "\n")
 			}
 		}

@@ -38,6 +38,9 @@ func main() {
 	var env string
 	flag.StringVar(&env, "env", "", "Environment name to load variables from (e.g., Production)")
 
+	var verbose bool
+	flag.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
+
 	flag.Parse()
 
 	if len(os.Args) == 1 {
@@ -79,6 +82,7 @@ func main() {
 		Remove:  removes,
 		Input:   input,
 		Output:  output,
+		Verbose: verbose,
 	}
 
 	// Generate output filename if default or empty

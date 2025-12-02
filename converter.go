@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ type Config struct {
 	Remove  []string
 	Input   string
 	Output  string
+	Verbose bool
 }
 
 // WalkAndConvert walks the directory and converts .bru files to Postman collection
@@ -111,6 +113,26 @@ func BruToPostman(bru *BruFile, config Config) *Item {
 	// Apply replacements to URL and Body
 	url := bru.Url
 	body := bru.Body
+
+	// Check if the endpoint uses any removed variables
+	for _, r := range config.Remove {
+		placeholder := "{{" + r + "}}"
+		if strings.Contains(url, placeholder) || strings.Contains(body, placeholder) {
+			if config.Verbose {
+				fmt.Printf("Skipping endpoint '%s' because it uses removed variable '%s' in URL or Body\n", bru.Name, r)
+			}
+			return nil
+		}
+		// Check Auth
+		for _, v := range bru.Auth {
+			if strings.Contains(v, placeholder) {
+				if config.Verbose {
+					fmt.Printf("Skipping endpoint '%s' because it uses removed variable '%s' in Auth\n", bru.Name, r)
+				}
+				return nil
+			}
+		}
+	}
 
 	for k, v := range config.Replace {
 		placeholder := "{{" + k + "}}"

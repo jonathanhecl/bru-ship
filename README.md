@@ -9,7 +9,7 @@ This tool is designed to be **read-only** regarding your source files. It parses
 - **Recursive Conversion**: Automatically traverses your project directories to find all `.bru` files.
 - **Selective Export**: Filter which folders to include in the final collection.
 - **Variable Replacement**: Replace Bruno variables (e.g., `{{baseUrl}}`) with specific values or Postman variables during conversion.
-- **Sensitive Data Sanitization**: Remove specific headers or variables (like Admin Tokens) from the exported collection.
+- **Sensitive Data Sanitization**: Remove specific headers or variables (like Admin Tokens) from the exported collection. Endpoints using removed variables in their URL or Body will be **automatically skipped**.
 - **Dynamic Output Naming**: Automatically generates output filenames with timestamps if not specified.
 
 ## Installation
@@ -50,6 +50,7 @@ Run the tool from your terminal. If no arguments are provided, it will display t
 | `-replace` | Replace a variable in URLs/Bodies. Format: `key=value`. Can be repeated. | - |
 | `-remove` | Remove a header or variable by key. Can be repeated. | - |
 | `-env` | Name of the environment file to load variables from (e.g., `Production`). Looks in `environments/<name>.bru`. | - |
+| `-verbose` | Enable verbose logging to see skipped endpoints and other details. | `false` |
 
 ### Examples
 

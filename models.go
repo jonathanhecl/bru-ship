@@ -10,12 +10,13 @@ type BruFile struct {
 	Body    string
 	Vars    []KeyValue
 	Docs    string
+	Auth    map[string]string
 }
 
 type KeyValue struct {
-	Key   string
-	Value string
-    Enabled bool
+	Key     string
+	Value   string
+	Enabled bool
 }
 
 // PostmanCollection represents the root of the JSON
@@ -34,8 +35,8 @@ type Info struct {
 type Item struct {
 	Name        string        `json:"name"`
 	Description string        `json:"description,omitempty"`
-	Item        []Item        `json:"item,omitempty"`    // If it's a folder
-	Request     *Request      `json:"request,omitempty"` // If it's an endpoint
+	Item        []Item        `json:"item,omitempty"`     // If it's a folder
+	Request     *Request      `json:"request,omitempty"`  // If it's an endpoint
 	Response    []interface{} `json:"response,omitempty"` // Examples
 }
 
