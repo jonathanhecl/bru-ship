@@ -253,7 +253,7 @@ func BruToPostman(bru *BruFile, config Config, parentAuth map[string]string) *It
 	// However, we might want to clean up the URL if it has issues, but generally {{var}} is fine.
 
 	// Build Headers
-	var headers []Header
+	headers := []Header{}
 	for _, h := range bru.Headers {
 		// Check removals
 		remove := false
@@ -368,34 +368,7 @@ func BruToPostman(bru *BruFile, config Config, parentAuth map[string]string) *It
 	}
 
 	// Parse URL components
-	// Example: https://{{serverURL}}/status
-	// Protocol: https
-	// Host: {{serverURL}}
-	// Path: status
-
-	if strings.Contains(url, "://") {
-		parts := strings.SplitN(url, "://", 2)
-		req.Url.Protocol = parts[0]
-		remaining := parts[1]
-
-		// Split host and path
-		pathParts := strings.Split(remaining, "/")
-		if len(pathParts) > 0 {
-			req.Url.Host = []string{pathParts[0]}
-			if len(pathParts) > 1 {
-				req.Url.Path = pathParts[1:]
-			}
-		}
-	} else {
-		// No protocol, maybe just {{baseUrl}}/path
-		pathParts := strings.Split(url, "/")
-		if len(pathParts) > 0 {
-			req.Url.Host = []string{pathParts[0]}
-			if len(pathParts) > 1 {
-				req.Url.Path = pathParts[1:]
-			}
-		}
-	}
+	req.Url = parseUrl(url)
 
 	// Handle Body
 	if body != "" {
@@ -418,6 +391,13 @@ func BruToPostman(bru *BruFile, config Config, parentAuth map[string]string) *It
 		Request: req,
 	}
 
+	// Protocol Profile Behavior
+	if bru.Method == "GET" && body != "" {
+		item.ProtocolProfileBehavior = &ProtocolProfileBehavior{
+			DisableBodyPruning: true,
+		}
+	}
+
 	// Handle Examples (Responses)
 	for _, ex := range bru.Examples {
 		// Convert BruExample to PostmanResponse
@@ -425,37 +405,13 @@ func BruToPostman(bru *BruFile, config Config, parentAuth map[string]string) *It
 			Name: ex.Name,
 			OriginalRequest: &Request{
 				Method: ex.Request.Method,
-				Url: Url{
-					Raw: ex.Request.Url,
-				},
-				// We might need to parse URL for originalRequest too
+				Header: []Header{}, // Initialize empty
+				Url:    parseUrl(ex.Request.Url),
 			},
 			Status:                 ex.Response.StatusText,
 			Code:                   ex.Response.Status,
 			PostmanPreviewLanguage: "json", // Default to json
 			Body:                   ex.Response.Body,
-		}
-
-		// Parse OriginalRequest URL
-		if strings.Contains(ex.Request.Url, "://") {
-			parts := strings.SplitN(ex.Request.Url, "://", 2)
-			pmResponse.OriginalRequest.Url.Protocol = parts[0]
-			remaining := parts[1]
-			pathParts := strings.Split(remaining, "/")
-			if len(pathParts) > 0 {
-				pmResponse.OriginalRequest.Url.Host = []string{pathParts[0]}
-				if len(pathParts) > 1 {
-					pmResponse.OriginalRequest.Url.Path = pathParts[1:]
-				}
-			}
-		} else {
-			pathParts := strings.Split(ex.Request.Url, "/")
-			if len(pathParts) > 0 {
-				pmResponse.OriginalRequest.Url.Host = []string{pathParts[0]}
-				if len(pathParts) > 1 {
-					pmResponse.OriginalRequest.Url.Path = pathParts[1:]
-				}
-			}
 		}
 
 		// Headers
@@ -470,4 +426,61 @@ func BruToPostman(bru *BruFile, config Config, parentAuth map[string]string) *It
 	}
 
 	return item
+}
+
+func parseUrl(url string) Url {
+	u := Url{
+		Raw: url,
+	}
+
+	// Separate query string if present
+	urlWithoutQuery := url
+	var queryParams []Query
+
+	if idx := strings.Index(url, "?"); idx != -1 {
+		urlWithoutQuery = url[:idx]
+		queryString := url[idx+1:]
+
+		// Parse query params manually to preserve {{variables}}
+		pairs := strings.Split(queryString, "&")
+		for _, pair := range pairs {
+			kv := strings.SplitN(pair, "=", 2)
+			key := kv[0]
+			val := ""
+			if len(kv) > 1 {
+				val = kv[1]
+			}
+			queryParams = append(queryParams, Query{
+				Key:   key,
+				Value: val,
+			})
+		}
+	}
+
+	u.Query = queryParams
+
+	if strings.Contains(urlWithoutQuery, "://") {
+		parts := strings.SplitN(urlWithoutQuery, "://", 2)
+		u.Protocol = parts[0]
+		remaining := parts[1]
+
+		// Split host and path
+		pathParts := strings.Split(remaining, "/")
+		if len(pathParts) > 0 {
+			u.Host = []string{pathParts[0]}
+			if len(pathParts) > 1 {
+				u.Path = pathParts[1:]
+			}
+		}
+	} else {
+		// No protocol, maybe just {{baseUrl}}/path
+		pathParts := strings.Split(urlWithoutQuery, "/")
+		if len(pathParts) > 0 {
+			u.Host = []string{pathParts[0]}
+			if len(pathParts) > 1 {
+				u.Path = pathParts[1:]
+			}
+		}
+	}
+	return u
 }

@@ -55,12 +55,17 @@ type Info struct {
 
 // Item can be a Folder or a Request (recursive)
 type Item struct {
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	Item        []Item            `json:"item,omitempty"`     // If it's a folder
-	Request     *Request          `json:"request,omitempty"`  // If it's an endpoint
-	Response    []PostmanResponse `json:"response,omitempty"` // Examples
-	Variable    []Variable        `json:"variable,omitempty"` // Folder variables
+	Name                    string                   `json:"name"`
+	Description             string                   `json:"description,omitempty"`
+	Item                    []Item                   `json:"item,omitempty"`                    // If it's a folder
+	Request                 *Request                 `json:"request,omitempty"`                 // If it's an endpoint
+	Response                []PostmanResponse        `json:"response,omitempty"`                // Examples
+	Variable                []Variable               `json:"variable,omitempty"`                // Folder variables
+	ProtocolProfileBehavior *ProtocolProfileBehavior `json:"protocolProfileBehavior,omitempty"` // Protocol behavior
+}
+
+type ProtocolProfileBehavior struct {
+	DisableBodyPruning bool `json:"disableBodyPruning,omitempty"`
 }
 
 type PostmanResponse struct {
@@ -116,6 +121,14 @@ type Url struct {
 	Host     []string   `json:"host,omitempty"`
 	Path     []string   `json:"path,omitempty"`
 	Variable []Variable `json:"variable,omitempty"` // Path params
+	Query    []Query    `json:"query,omitempty"`    // Query params
+}
+
+type Query struct {
+	Key         string `json:"key"`
+	Value       string `json:"value"`
+	Description string `json:"description,omitempty"`
+	Disabled    bool   `json:"disabled,omitempty"`
 }
 
 type Variable struct {
