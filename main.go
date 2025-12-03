@@ -52,6 +52,9 @@ func main() {
 	var keepFolders bool
 	flag.BoolVar(&keepFolders, "keep-folders", false, "Keep folder structure (default is to flatten)")
 
+	var title string
+	flag.StringVar(&title, "title", "", "Title for the generated Postman Collection")
+
 	// Filter out standalone "\" arguments which might be passed by PowerShell when copy-pasting multi-line commands
 	var args []string
 	for _, arg := range os.Args {
@@ -118,6 +121,7 @@ func main() {
 		Output:      output,
 		Verbose:     verbose,
 		KeepFolders: keepFolders,
+		Title:       title,
 	}
 
 	// Generate output filename if default or empty

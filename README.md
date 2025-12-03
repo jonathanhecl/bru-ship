@@ -59,6 +59,7 @@ Run the tool from your terminal. If no arguments are provided, it will display t
 |------|-------------|---------|
 | `-input` | Root directory of your Bruno collection. | `.` (Current Dir) |
 | `-output` | Path for the generated Postman JSON file. If omitted, generates `[Folders]-[Timestamp].json`. | `collection.json` (or dynamic) |
+| `-title` | Title for the generated Postman Collection. | Collection Name from `bruno.json` or Directory Name |
 | `-folders` | Comma-separated list of specific folders to include (e.g., `Auth,Users`). | (All folders) |  
 | `-ignore` | Comma-separated list of keywords. Any endpoint whose name contains one of these keywords will be skipped (e.g., `[DEPRECATED],Old`). | - |
 | `-replace` | Replace a variable in URLs/Bodies. Format: `key=value`. Can be repeated. | - |

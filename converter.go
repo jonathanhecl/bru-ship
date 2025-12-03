@@ -18,23 +18,28 @@ type Config struct {
 	Output      string
 	Verbose     bool
 	KeepFolders bool
+	Title       string
 }
 
 // WalkAndConvert walks the directory and converts .bru files to Postman collection
 func WalkAndConvert(config Config) (*PostmanCollection, error) {
 	collectionName := "Bruno Collection"
 
-	// Try to read bruno.json
-	brunoConfigPath := filepath.Join(config.Input, "bruno.json")
-	if fileContent, err := os.ReadFile(brunoConfigPath); err == nil {
-		var brunoConfig BrunoConfig
-		if err := json.Unmarshal(fileContent, &brunoConfig); err == nil && brunoConfig.Name != "" {
-			collectionName = brunoConfig.Name
-		}
+	if config.Title != "" {
+		collectionName = config.Title
 	} else {
-		// Fallback to directory name if bruno.json is missing
-		if absPath, err := filepath.Abs(config.Input); err == nil {
-			collectionName = filepath.Base(absPath)
+		// Try to read bruno.json
+		brunoConfigPath := filepath.Join(config.Input, "bruno.json")
+		if fileContent, err := os.ReadFile(brunoConfigPath); err == nil {
+			var brunoConfig BrunoConfig
+			if err := json.Unmarshal(fileContent, &brunoConfig); err == nil && brunoConfig.Name != "" {
+				collectionName = brunoConfig.Name
+			}
+		} else {
+			// Fallback to directory name if bruno.json is missing
+			if absPath, err := filepath.Abs(config.Input); err == nil {
+				collectionName = filepath.Base(absPath)
+			}
 		}
 	}
 
