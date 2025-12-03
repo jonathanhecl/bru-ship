@@ -24,6 +24,7 @@ func ParseBruFile(path string) (*BruFile, error) {
 
 	var currentBlock string
 	var bodyBuffer strings.Builder
+	var docsBuffer strings.Builder
 	blockIndents := make(map[string]string)
 
 	for scanner.Scan() {
@@ -36,7 +37,7 @@ func ParseBruFile(path string) (*BruFile, error) {
 			indent = line[:strings.Index(line, trimmedLine)]
 		}
 
-		if trimmedLine == "" && !strings.HasPrefix(currentBlock, "body") && currentBlock != "example" {
+		if trimmedLine == "" && !strings.HasPrefix(currentBlock, "body") && currentBlock != "docs" && currentBlock != "example" {
 			continue
 		}
 
@@ -69,6 +70,13 @@ func ParseBruFile(path string) (*BruFile, error) {
 				if line == blockIndents[currentBlock]+"}" {
 					bru.Body = bodyBuffer.String()
 					bodyBuffer.Reset()
+					currentBlock = ""
+					continue
+				}
+			} else if currentBlock == "docs" {
+				if line == blockIndents[currentBlock]+"}" {
+					bru.Docs = docsBuffer.String()
+					docsBuffer.Reset()
 					currentBlock = ""
 					continue
 				}
@@ -139,8 +147,7 @@ func ParseBruFile(path string) (*BruFile, error) {
 				})
 			}
 		case "docs":
-			// Docs are usually markdown, just append
-			// TODO: Handle docs better if needed
+			docsBuffer.WriteString(line + "\n")
 		case "example":
 			if idx == -1 {
 				continue
