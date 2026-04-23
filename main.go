@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	version string = "1.0.1"
+	version string = "1.0.2"
 )
 
 // arrayFlags allows setting multiple flags with the same name
