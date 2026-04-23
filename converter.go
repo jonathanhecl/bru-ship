@@ -55,8 +55,16 @@ func WalkAndConvert(config Config) (*PostmanCollection, error) {
 	}
 
 	// Populate Collection Variables
+	removedVars := make(map[string]bool)
+	for _, r := range config.Remove {
+		removedVars[r] = true
+	}
+
 	existingVars := make(map[string]bool)
 	for k, v := range config.Replace {
+		if removedVars[k] {
+			continue
+		}
 		collection.Variable = append(collection.Variable, Variable{
 			Key:   k,
 			Value: v,
@@ -71,6 +79,9 @@ func WalkAndConvert(config Config) (*PostmanCollection, error) {
 		if bru, err := ParseBruFile(collectionBruPath); err == nil {
 			globalAuth = bru.Auth
 			for _, v := range bru.Vars {
+				if removedVars[v.Key] {
+					continue
+				}
 				if !existingVars[v.Key] {
 					collection.Variable = append(collection.Variable, Variable{
 						Key:   v.Key,

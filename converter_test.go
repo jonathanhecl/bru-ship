@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -132,5 +134,50 @@ func TestBruToPostmanStructure(t *testing.T) {
 	}
 	if !strings.Contains(jsonString, `"disableBodyPruning": true`) {
 		t.Errorf("Missing disableBodyPruning")
+	}
+}
+
+func TestWalkAndConvert_RemovedCollectionVariablesAreFiltered(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	collectionBru := `vars:pre-request {
+  ~myCallbackApiKey: from-collection
+  baseUrl: https://api.example.com
+}
+`
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "collection.bru"), []byte(collectionBru), 0644); err != nil {
+		t.Fatalf("failed to write collection.bru: %v", err)
+	}
+
+	config := Config{
+		Input:  tmpDir,
+		Remove: []string{"~myCallbackApiKey"},
+		Replace: map[string]string{
+			"~myCallbackApiKey": "from-replace",
+			"tenantId":          "123",
+		},
+	}
+
+	collection, err := WalkAndConvert(config)
+	if err != nil {
+		t.Fatalf("WalkAndConvert returned error: %v", err)
+	}
+
+	varMap := make(map[string]string)
+	for _, v := range collection.Variable {
+		varMap[v.Key] = v.Value
+	}
+
+	if _, exists := varMap["~myCallbackApiKey"]; exists {
+		t.Fatalf("expected removed variable ~myCallbackApiKey to be excluded from collection.variable")
+	}
+
+	if got := varMap["tenantId"]; got != "123" {
+		t.Fatalf("expected tenantId=123, got %q", got)
+	}
+
+	if got := varMap["baseUrl"]; got != "https://api.example.com" {
+		t.Fatalf("expected baseUrl from collection.bru to be kept, got %q", got)
 	}
 }
