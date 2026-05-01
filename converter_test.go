@@ -181,3 +181,51 @@ func TestWalkAndConvert_RemovedCollectionVariablesAreFiltered(t *testing.T) {
 		t.Fatalf("expected baseUrl from collection.bru to be kept, got %q", got)
 	}
 }
+
+func TestWalkAndConvert_DisabledPrefixedVariablesAreFiltered(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	collectionBru := `vars:pre-request {
+  ~disabledFromCollection: from-collection
+  baseUrl: https://api.example.com
+}
+`
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "collection.bru"), []byte(collectionBru), 0644); err != nil {
+		t.Fatalf("failed to write collection.bru: %v", err)
+	}
+
+	config := Config{
+		Input: tmpDir,
+		Replace: map[string]string{
+			"~disabledFromReplace": "from-replace",
+			"tenantId":             "123",
+		},
+	}
+
+	collection, err := WalkAndConvert(config)
+	if err != nil {
+		t.Fatalf("WalkAndConvert returned error: %v", err)
+	}
+
+	varMap := make(map[string]string)
+	for _, v := range collection.Variable {
+		varMap[v.Key] = v.Value
+	}
+
+	if _, exists := varMap["~disabledFromCollection"]; exists {
+		t.Fatalf("expected ~disabledFromCollection to be excluded from collection.variable")
+	}
+
+	if _, exists := varMap["~disabledFromReplace"]; exists {
+		t.Fatalf("expected ~disabledFromReplace to be excluded from collection.variable")
+	}
+
+	if got := varMap["tenantId"]; got != "123" {
+		t.Fatalf("expected tenantId=123, got %q", got)
+	}
+
+	if got := varMap["baseUrl"]; got != "https://api.example.com" {
+		t.Fatalf("expected baseUrl from collection.bru to be kept, got %q", got)
+	}
+}

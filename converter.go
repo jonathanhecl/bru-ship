@@ -21,6 +21,10 @@ type Config struct {
 	Title       string
 }
 
+func isDisabledVariableKey(key string) bool {
+	return strings.HasPrefix(strings.TrimSpace(key), "~")
+}
+
 // WalkAndConvert walks the directory and converts .bru files to Postman collection
 func WalkAndConvert(config Config) (*PostmanCollection, error) {
 	collectionName := "Bruno Collection"
@@ -62,7 +66,7 @@ func WalkAndConvert(config Config) (*PostmanCollection, error) {
 
 	existingVars := make(map[string]bool)
 	for k, v := range config.Replace {
-		if removedVars[k] {
+		if removedVars[k] || isDisabledVariableKey(k) {
 			continue
 		}
 		collection.Variable = append(collection.Variable, Variable{
@@ -79,7 +83,7 @@ func WalkAndConvert(config Config) (*PostmanCollection, error) {
 		if bru, err := ParseBruFile(collectionBruPath); err == nil {
 			globalAuth = bru.Auth
 			for _, v := range bru.Vars {
-				if removedVars[v.Key] {
+				if removedVars[v.Key] || isDisabledVariableKey(v.Key) {
 					continue
 				}
 				if !existingVars[v.Key] {
